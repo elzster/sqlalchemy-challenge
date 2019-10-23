@@ -50,7 +50,8 @@ def home():
         f"<b>Here are the available Routes:</b><br>"
         f"<a href={precipitation_link}> Precipitation</a><br>"
         f"<a href={station_link}>Stations</a><br>"
-        f"<a href={tobs_link}>Observed Temperatures</a><br>"
+        f"<a href={tobs_link}>Observed Temperatures For Previous Year</a><br>"
+        f"<a href={}>Start and Stop Temps for Designated Times</a><br>"
     )
 #precipitation Results.
 @app.route("/api/v1.0/precipitation")
@@ -105,10 +106,24 @@ def stations():
 def temperature():
     session = Session(engine)
     
-    results = session.query(Measurement.tobs).all()
+    results = session.query(Measurement.station, Station.name, Measurement.date, Measurement.tobs).\
+                            filter(Measurement.station == Station.station).\
+                            filter(Measurement.date >= '2016-08-24').\
+                            filter(Measurement.date <= '2017-08-23').\
+                            order_by(Measurement.date desc).all()
     
-    tobs_list = list(np.ravel(results))
+    #creates a dictionary to parse into json from results on merged tables.
+    tobs_list = []
+    for x in results:
+        list_dict = {}
+        list_dict['name'] = x.name
+        list_dict['date'] = x.date
+        list_dict['tobs'] = x.tobs
+        tobs_list.append(list_dict)
+
     
+        session.close()
+
     return jsonify(tobs_list)
 
 
