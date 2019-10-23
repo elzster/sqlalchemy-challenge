@@ -8,11 +8,11 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, render_template
 
-#################################################
+###############################################
 # Database Setup
-#################################################
+###############################################
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
@@ -23,7 +23,7 @@ Base.prepare(engine, reflect=True)
 Measurement = Base.classes.measurement
 Station = Base.classes.station
 
-#################################################
+################################################
 # Flask Setup
 ################################################
 
@@ -35,67 +35,70 @@ app= Flask(__name__)
 # Routes
 # /
 # Home page.
-#Hyperlinks for Homepage.
 
+#Hyperlinks for Homepage.
+sun = "https://s3.amazonaws.com/zenplannerwordpress-stack0/wp-content/uploads/sites/479/2019/05/29130237/sunshine-sun-clip-art-with-transparent-background-free-sun-clipart-2361_2358-300x300.png"
 station_link = "http://127.0.0.1:5000/api/v1.0/stations"
 salad = "https://vignette.wikia.nocookie.net/fantheories/images/2/2c/Salad-Fingers-Episode-4--Salad-Fingers--Cage.jpg/revision/latest?cb=20140508224616"
 precipitation_link = "http://127.0.0.1:5000/api/v1.0/precipitation"
 tobs_link = "http://127.0.0.1:5000/api/v1.0/tobs"
+start_link = "http://127.0.0.1:5000/api/v1.0/2017-01-01"
+start_end_link = "http://127.0.0.1:5000/api/v1.0/2016-01-01/2017-01-01"
 
+#HomePage Route
 @app.route("/")
 def home():
     return (
-        f"<h1>Welcome to the Home Page!</h1><br>"
-        f"<img src={salad}><br>"
-        f"<b>Here are the available Routes:</b><br>"
-        f"<a href={precipitation_link}> Precipitation</a><br>"
-        f"<a href={station_link}>Stations</a><br>"
-        f"<a href={tobs_link}>Observed Temperatures For Previous Year</a><br>"
-        f"<a href={}>Start and Stop Temps for Designated Times</a><br>"
+        f"<center><h1>Welcome to the Home Page!</h1></center><br>"
+        f"<center><img src={salad}></center><br>"
+        f"<center><b>Here are the available Routes:</b></center><br>"
+        f"<center><a href={precipitation_link}> Precipitation</a></center><br>"
+        f"<center><a href={station_link}>Stations</a></center><br>"
+        f"<center><a href={tobs_link}>Observed Temperatures For Previous Year</a></center><br>"
+        f"<center><a href={start_link}>Temperature on Specific Date</a></center><br>"
+        f"<center><a href={start_end_link}>Temperature observed in specific range.</center>"
     )
 #precipitation Results.
 @app.route("/api/v1.0/precipitation")
 def precipitation():
-    # return "This is the precipitation page." #<---Testing Paths
+    
     session = Session(engine)
 
-    """Return a list of all passenger names"""
-    # Query all passengers
     results2 = session.query(Measurement.date, Measurement.prcp).all()
 
     precip_list = []
+    
     for x in results2:
         list_dict = {}
-        list_dict['date'] = x.date
-        list_dict['prcp'] = x.prcp
+        list_dict['Date'] = x.date
+        list_dict['Rainfall Amount'] = x.prcp
         precip_list.append(list_dict)
     
-    
         session.close()
-
-        # Convert list of tuples into normal list
-        # all_precipitation = list(np.ravel(results2))
-
+        
     return jsonify(precip_list)
 
 # /api/v1.0/stations
 # Return a JSON list of stations from the dataset.
 @app.route("/api/v1.0/stations")
 def stations():
-    # return "This is the stations page."
-    # Create our session (link) from Python to the DB
+
     session = Session(engine)
 
-    """Return a list of all passenger names"""
-    # Query all passengers
-    results = session.query(Station.station, Station.name).all()
+    results = session.query(Station.station, Station.name, Station.latitude, Station.longitude, Station.elevation).all()
 
-    session.close()
-
-    #SELECT name FROM passenger;
-
-    # Convert list of tuples into normal list
-    all_stations = list(np.ravel(results))
+    all_stations = []
+    for x in results:
+        list_dict = {}
+        list_dict['Station No.'] = x.station
+        list_dict['Station Location'] = x.name
+        list_dict['Latitude'] = x.latitude
+        list_dict['Longitude'] = x.longitude
+        list_dict['Elevation'] = x.elevation
+        all_stations.append(list_dict)
+    
+    
+        session.close()
 
     return jsonify(all_stations)
 
@@ -103,22 +106,22 @@ def stations():
 # Return a JSON list of Temperature Observations (tobs) for the previous year.
 # /api/v1.0/tobs
 @app.route("/api/v1.0/tobs")
-def temperature():
+def tobs():
     session = Session(engine)
     
     results = session.query(Measurement.station, Station.name, Measurement.date, Measurement.tobs).\
                             filter(Measurement.station == Station.station).\
                             filter(Measurement.date >= '2016-08-24').\
                             filter(Measurement.date <= '2017-08-23').\
-                            order_by(Measurement.date desc).all()
+                            order_by(Measurement.date).all()
     
-    #creates a dictionary to parse into json from results on merged tables.
+    #creates a dictionary to parse into json from results on merged tables.    
     tobs_list = []
     for x in results:
         list_dict = {}
-        list_dict['name'] = x.name
-        list_dict['date'] = x.date
-        list_dict['tobs'] = x.tobs
+        list_dict['Name'] = x.name
+        list_dict['Date'] = x.date
+        list_dict['Temp_Observed'] = x.tobs
         tobs_list.append(list_dict)
 
     
@@ -126,49 +129,69 @@ def temperature():
 
     return jsonify(tobs_list)
 
+@app.route("/api/v1.0/<date>")
+def temperatures_date(date):
 
-# Hints
-# You will need to join the station and measurement tables for some of the analysis queries.
+    session = Session(engine)
+    
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+                filter(Measurement.date >= date ).all()
+    
+#Query Using Date, Default entered is 2017-01-01
+    temperatures = []
+    for x in results:
+        list_dict = {}
+        list_dict['min'] = results[0][0]
+        list_dict['avg'] = round(results[0][1],2)
+        list_dict['max'] = results[0][2]
+        temperatures.append(list_dict)
+
+
+        session.close()
+#this prints up a prettier webpage with some text display.
+    return(
+        f"<center><img src={sun}></center><br>"    
+        f"<center><h3>Here are the temperature stats for {date}:</h3></center><br>"    
+        f"<center>The Min Temperature was {list_dict['min']} degrees.</center><br>"
+        f"<center>The Average Temperature was {list_dict['avg']} degrees.</center><br>"
+        f"<center>The Max Temperature was {list_dict['max']} degrees.</center>"
+    )
+
+
+@app.route("/api/v1.0/<start>/<end>")
+def temperatures_start(start, end):
+
+    session = Session(engine)
+    
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+                filter(Measurement.date >= start ).\
+                filter(Measurement.date <= end ).all()
+    
+    # Convert list of tuples into normal list
+#     # temperatures = list(np.ravel(results))
+
+    # return jsonify(temperatures)
+    temperatures = []
+    for x in results:
+        list_dict = {}
+        list_dict['min'] = results[0][0]
+        list_dict['avg'] = round(results[0][1],2)
+        list_dict['max'] = results[0][2]
+        temperatures.append(list_dict)
+
+
+        session.close()
+
+    return(
+        f"<center><img src={sun}></center><br>"    
+        f"<center><h3>Here are the temperature stats between {start} and {end}:</h3></center><br>"    
+        f"<center>The Min Temperature was {list_dict['min']} degrees.</center><br>"
+        f"<center>The Average Temperature was {list_dict['avg']} degrees.</center><br>"
+        f"<center>The Max Temperature was {list_dict['max']} degrees.</center>"
+    )
+
 
 #this is to actively run flask server.
 if __name__ == "__main__":
     app.run(debug=True)
     
-    
-# When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates 
-# between the start and end date inclusive.
-
-# query for the dates and temperature observations from a year from the last data point.
-# Return a JSON list of Temperature Observations (tobs) for the previous year.
-# /api/v1.0/<start> and /api/v1.0/<start>/<end>
-
-# Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start or start-end range.
-
-# When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
-
-# When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
-
-#Will need this for returning a list dictionary as jSON.
-
-
-
-
-
-###################################################
-#########snippet of passenger example##############
-#     """Return a list of passenger data including the name, age, and sex of each passenger"""
-#     # Query all passengers
-#     results = session.query(Passenger.name, Passenger.age, Passenger.sex).all()
-
-#     session.close()
-
-#     # Create a dictionary from the row data and append to a list of all_passengers
-#     all_passengers = []
-#     for name, age, sex in results:
-#         passenger_dict = {}
-#         passenger_dict["name"] = name
-#         passenger_dict["age"] = age
-#         passenger_dict["sex"] = sex
-#         all_passengers.append(passenger_dict)
-
-#     return jsonify(all_passengers)
