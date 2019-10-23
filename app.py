@@ -62,16 +62,23 @@ def precipitation():
     # Query all passengers
     results2 = session.query(Measurement.date, Measurement.prcp).all()
 
-    session.close()
+    precip_list = []
+    for x in results2:
+        list_dict = {}
+        list_dict['date'] = x.date
+        list_dict['prcp'] = x.prcp
+        precip_list.append(list_dict)
+    
+    
+        session.close()
 
-    # Convert list of tuples into normal list
-    all_precipitation = list(np.ravel(results2))
+        # Convert list of tuples into normal list
+        # all_precipitation = list(np.ravel(results2))
 
-    return jsonify(all_precipitation)
+    return jsonify(precip_list)
 
 # /api/v1.0/stations
 # Return a JSON list of stations from the dataset.
-#Needs to return just a list of all stations.
 @app.route("/api/v1.0/stations")
 def stations():
     # return "This is the stations page."
@@ -91,20 +98,30 @@ def stations():
 
     return jsonify(all_stations)
 
-# query for the dates and temperature observations from a year from the last data point.
+
 # Return a JSON list of Temperature Observations (tobs) for the previous year.
 # /api/v1.0/tobs
 @app.route("/api/v1.0/tobs")
 def temperature():
-    return "This is the observed temperature page."
+    session = Session(engine)
+    
+    results = session.query(Measurement.tobs).all()
+    
+    tobs_list = list(np.ravel(results))
+    
+    return jsonify(tobs_list)
 
-# List all routes that are available.
 
-# /api/v1.0/precipitation
+# Hints
+# You will need to join the station and measurement tables for some of the analysis queries.
 
-# Convert the query results to a Dictionary using date as the key and prcp as the value.
-
-# Return the JSON representation of your dictionary.
+#this is to actively run flask server.
+if __name__ == "__main__":
+    app.run(debug=True)
+    
+    
+# When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates 
+# between the start and end date inclusive.
 
 # query for the dates and temperature observations from a year from the last data point.
 # Return a JSON list of Temperature Observations (tobs) for the previous year.
@@ -117,11 +134,13 @@ def temperature():
 # When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
 
 #Will need this for returning a list dictionary as jSON.
-# @app.route("/api/v1.0/passengers")
-# def passengers():
-#     # Create our session (link) from Python to the DB
-#     session = Session(engine)
 
+
+
+
+
+###################################################
+#########snippet of passenger example##############
 #     """Return a list of passenger data including the name, age, and sex of each passenger"""
 #     # Query all passengers
 #     results = session.query(Passenger.name, Passenger.age, Passenger.sex).all()
@@ -138,10 +157,3 @@ def temperature():
 #         all_passengers.append(passenger_dict)
 
 #     return jsonify(all_passengers)
-
-# Hints
-# You will need to join the station and measurement tables for some of the analysis queries.
-
-# Use Flask jsonify to convert your API data into a valid JSON response object.
-if __name__ == "__main__":
-    app.run(debug=True)
