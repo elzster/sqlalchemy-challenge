@@ -50,7 +50,7 @@ start_end_link = "http://127.0.0.1:5000/api/v1.0/2016-01-01/2017-01-01"
 def home():
     return (
         f"<center><h1>Welcome to the Home Page!</h1></center><br>"
-        f"<center><img src={salad}></center><br>"
+        f"<center><img src={sun}></center><br>"
         f"<center><b>Here are the available Routes:</b></center><br>"
         f"<center><a href={precipitation_link}> Precipitation</a></center><br>"
         f"<center><a href={station_link}>Stations</a></center><br>"
